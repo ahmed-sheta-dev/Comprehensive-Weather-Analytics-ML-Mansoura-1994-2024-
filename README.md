@@ -1,151 +1,107 @@
-# 🌦️ Comprehensive Weather Data Analysis & Predictive Modeling
+# Comprehensive Weather Analytics: Mansoura (1994-2024)
 
-### *A Case Study of Mansoura, Egypt (1994–2024)*
+## Overview
+- Thirty years of daily weather observations for Mansoura, Egypt were cleaned, merged, and modelled to understand local climate behaviour between August 1994 and June 2024.
+- The project walks through an end-to-end data science workflow: ingestion, preprocessing, exploratory analysis, feature engineering, supervised learning, and diagnostic evaluation.
+- Work was completed as a training capstone, emphasising practical handling of messy multi-format data and rapid iteration on baseline and tree-based models.
 
-## 🧭 Overview
+## Repository Map
+- `final-project-weather.ipynb` - main notebook covering data cleaning, feature engineering, exploratory plots, and machine-learning experiments.
+- `data/` - historical raw exports for Mansoura (mixed CSV/Excel formats prior to harmonisation).
+- `reprot/` - saved visual assets grouped by topic (`temp`, `windspeed`, `time`, `Solar`, `dumidity`, `Categorical`); paths below reference this folder directly.
 
-This project explores **30 years of historical weather data for Mansoura, Egypt (1994–2024)** to uncover patterns, trends, and predictive insights.
-The goal is to build a **complete data science pipeline**: from cleaning and engineering features to modeling and evaluating predictive performance.
+## Dataset & Coverage
+- **Location:** Mansoura, Egypt.
+- **Range:** August 1994 to June 2024 (approx. 30 years of daily records).
+- **Granularity:** Daily measurements with engineered temporal aggregations (weekly, monthly, seasonal).
+- **Key attributes:** temperature extrema, apparent temperature, humidity, wind speed & direction, solar radiation/energy, precipitation metrics, cloud cover, moon phase, categorical weather condition, and engineered rolling/delta features.
 
-This project was developed during a **machine learning training program**, and served as a capstone to consolidate all learned concepts—covering real-world challenges such as handling multi-format datasets, feature engineering at scale, and model selection.
+## Preprocessing & Feature Engineering Highlights
+- Normalised inconsistent column names and encodings across heterogeneous source files.
+- Imputed sparse gaps, coerced time fields to a unified datetime index, and enriched the dataset with calendar intelligence (day/week/month/season/year).
+- Built lag, delta, and rolling-window statistics (`temp_change`, `prev_year_month_temp_std`, `temp_7d_avg`, `wind_30d_avg`, `humidity_7d_avg`, etc.) to boost predictive signal.
+- Encoded `temp_category`, a three-class label comparing each day's temperature to the same calendar day one year earlier (Higher / Normal / Lower).
+- Preserved clean train/test splits while scaling or encoding features as required by each algorithm family.
 
----
+## Modelling Summary
+Two target formulations were explored: (1) regression on normalised daily temperature, and (2) multi-class classification of temperature deltas.
 
-## 🎯 Objectives
+### Regression (predicting normalised daily temperature)
 
-* Analyze historical weather patterns and identify seasonal trends.
-* Engineer advanced temporal features to improve model accuracy.
-* Build classification and regression models for temperature and weather conditions.
-* Evaluate model performance and extract actionable insights for forecasting and planning.
+| Model | Test R^2 | MAE | RMSE | Notes |
+| --- | --- | --- | --- | --- |
+| Ridge Regression | 0.983 | 0.0217 | 0.0275 | Best-performing linear model with excellent generalisation. |
+| Linear Regression | 0.983 | 0.0219 | 0.0280 | Baseline closed-form solution matching Ridge after feature scaling. |
+| Random Forest Regressor | 0.960 | 0.0325 | 0.0426 | Captures non-linearity, slightly higher error but robust to outliers. |
 
----
+Additional models (SVR, Gradient Boosting, Decision Tree, SGD, KNN, Lasso) were benchmarked; Ridge/OLS provided the top balance of bias/variance, while complex ensembles tended to overfit without tuning.
 
-## 📊 Dataset Description
+### Classification (`temp_category` prediction)
 
-### Source & Time Range
+| Model | Accuracy | Precision | Recall | F1 | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Gradient Boosting Classifier | 1.000 | 1.00 | 1.00 | 1.00 | Perfect scores indicate likely overfit on this split; requires cross-validation. |
+| Decision Tree Classifier | 0.937 | 0.94 | 0.94 | 0.94 | Strong baseline with interpretable splits. |
+| Random Forest Classifier | 0.932 | 0.93 | 0.95 | 0.93 | Balanced performance, slightly higher recall for "Higher" class. |
+| Logistic Regression | 0.929 | 0.95 | 0.92 | 0.93 | Reliable linear baseline; triggered sklearn warnings due to class separation but metrics remain stable. |
 
-* **Location:** Mansoura, Egypt
-* **Time span:** August 1994 → June 2024
-* **Data Format:** Multiple files and formats (CSV, Excel, etc.) were merged and standardized.
-* **Challenge:** The data came in **different formats, encodings, and column naming conventions**, requiring careful preprocessing to unify and structure it.
+Naive Bayes and KNN struggled with class imbalance and produced <0.55 accuracy.
 
-### Columns Overview
+### Aggregated Evaluation
+- Weekly resampling (mode values) retained high skill with **R^2 approx. 0.91** and **RMSE approx. 0.062**, affirming short-term predictive utility.
+- Monthly aggregation (mode) achieved **R^2 approx. 0.82**; seasonal mode dropped to **R^2 approx. 0.64**, signalling that coarse averages reduce model signal.
+- Minimum/maximum aggregates suffered degraded fit versus mode, suggesting the learned relationships favour typical mid-range behaviour.
 
-| Category             | Example Columns                                     | Description                                             |
-| -------------------- | --------------------------------------------------- | ------------------------------------------------------- |
-| Temperature          | `temp`, `tempmax`, `tempmin`                        | Daily max, min, and average temperatures                |
-| Humidity & Dew Point | `humidity`, `dew`                                   | Atmospheric humidity and dew point                      |
-| Wind & Solar         | `winddir`, `windspeed`, `uvindex`, `solarradiation` | Environmental factors                                   |
-| Precipitation        | `precip`, `precipprob`, `precipcover`               | Rainfall metrics                                        |
-| Temporal Features    | `month`, `season`, `week_number`, `day`             | Engineered for time-series patterns                     |
-| Target Labels        | `temp_category`                                     | Categorical variable based on previous-year temperature |
+## Visual Insights
 
-📎 **Note:** A classification column was added to label each day as *Higher*, *Lower*, or *Normal* compared to the same date in the previous year.
+### Wind Patterns
+- Prevailing winds concentrate in the western and north-western quadrants, with most days recording speeds below 40 km/h.
+- Distribution and windrose plots are saved in `reprot/windspeed`.
 
----
+![Distribution of Windspeed](./reprot/windspeed/1.png)
+![Wind Direction & Speed (Windrose)](./reprot/windspeed/7.png)
 
-## 🧹 Data Preprocessing & Feature Engineering
+### Temperature Trends
+- Year-on-year averages show a gradual warming trend with notable spikes around 2010 and early 2020s.
+- Multi-scale views (year, season, month, week, day) highlight the pronounced summer peaks and mild winters typical of the region.
+- Seasonal panels reveal warming summers and springs, while winters remain comparatively stable.
 
-The dataset required extensive preprocessing to prepare it for analysis:
+![Average Temperature Change Over the Years](./reprot/temp/12.png)
+![Multi-scale Temperature Profiles](./reprot/temp/7.png)
+![Seasonal Temperature Trends 1995-2024](./reprot/temp/8.png)
 
-* ✅ Unifying column names across multiple files.
-* 🧽 Handling missing values and inconsistent encodings.
-* 🧮 Creating **rolling statistics** (`temp_7d_avg`, `temp_30d_avg`, `humidity_7d_avg`, `wind_30d_avg`, etc.).
-* 🕒 Extracting **temporal features**: day, week number, season, month.
-* 📊 Generating **lag and delta features**: `previous_temp`, `temp_change`, `temp_range`, `prev_year_month_temp_std`.
-* ⚙️ Scaling and encoding variables for model input.
+### Time-Series Quality Checks
+- Visual comparison before/after date fixes confirms artefacts removed from the original time index.
 
----
+![Temperature Over Time (post cleanup)](./reprot/time/years/aftar%20fex%20the%20date%20in%20data.png)
 
-## 🔍 Exploratory Data Analysis (EDA)
+### Weather Conditions Breakdown
+- Clear and partially cloudy conditions dominate the record, with rain-related events forming a small fraction.
+- Monthly breakdown underscores the sharp seasonal split between dry, hot summers and wetter winter months.
 
-EDA was conducted to explore patterns and relationships across 30 years of weather data:
+![Top Weather Conditions vs Other](./reprot/Categorical/1.png)
+![Weather Conditions Across Months](./reprot/Categorical/4.png)
 
-* 🌡️ Seasonal temperature trends and anomalies.
-* 🌧️ Rainfall distribution and seasonal shifts.
-* 🌬️ Wind and solar radiation variability.
-* 📈 Correlations between humidity, temperature, and dew point.
-
-🖼️ **Figures to include**:
-
-* [ ] Temperature trend over years (Line chart)
-* [ ] Monthly average temp vs humidity (Bar/Line combo)
-* [ ] Correlation heatmap
-* [ ] Precipitation distribution per season
-
----
-
-## 🧠 Modeling & Machine Learning
-
-The project includes **both classification and regression tasks**:
-
-| Type           | Models Used                                                                                      | Targets                          | Metrics            |
-| -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------- | ------------------ |
-| Classification | Logistic Regression, Random Forest, KNN, Naive Bayes, Gradient Boosting, Decision Tree           | `temp_category`                  | Accuracy           |
-| Regression     | Linear Regression, Random Forest Regressor, KNN Regressor, Gradient Boosting, Decision Tree, SGD | temperature and related features | MAE, MSE, RMSE, R² |
-
----
-
-## 🧪 Evaluation & Results
-
-* Baseline classification accuracy: `XX%` *(replace with actual number)*
-* Best regression R² score: `X.XX` *(replace with actual number)*
-* Feature engineering significantly improved both accuracy and R² compared to using raw columns.
-
-🖼️ **Figures to include**:
-
-* [ ] Classification model performance comparison (bar plot)
-* [ ] Regression error distribution (histogram or residual plot)
-* [ ] Actual vs Predicted temperature scatter plot
-
----
-
-## 🧭 Key Challenges
-
-* ⏳ **Time Constraints**: This project was built as part of an intensive training program with limited delivery time.
-* 🧾 **Data Complexity**: Data collected from multiple files and formats required standardization and careful handling.
-* 🧠 **Feature Engineering**: Creating lag features and rolling windows at scale for 30 years of daily data was computationally demanding.
-* ⚖️ **Model Tuning**: Balancing simplicity (baseline models) with performance under limited time.
-
----
-
-## 🛠️ Tech Stack
-
-* **Language:** Python 3.12+
-* **Libraries:** pandas, numpy, matplotlib, seaborn, scikit-learn, windrose
-* **Environment:** Jupyter Notebook
-* **Version Control:** Git (planned for deployment)
-
----
-
-## 📌 Next Steps
-
-* Add cross-validation and hyperparameter tuning.
-* Integrate forecasting models (SARIMAX, Prophet, LSTM).
-* Containerize pipeline for deployment.
-* Build interactive dashboard for insights visualization.
-
----
-
-## 📝 How to Run
-
+## How to Run the Notebook
 ```bash
-# 1. Clone this repository
-git clone [your-repo-link]
+# 1. Create & activate a virtual environment (Windows example)
+python -m venv .venv
+.venv\Scripts\activate
 
-# 2. Install dependencies
-pip install -r requirements.txt
+# 2. Install core dependencies
+pip install pandas numpy matplotlib seaborn scikit-learn windrose
 
-# 3. Open the notebook
+# 3. Launch the notebook interface
 jupyter notebook final-project-weather.ipynb
-
-# 4. Run all cells in sequence
 ```
+> The notebook was authored with Python 3.12; earlier versions of scikit-learn may require minor API adjustments.
 
----
+## Next Steps
+- Add cross-validation, grid/random search, and probability calibration to mitigate overfitting (especially for boosting models).
+- Introduce time-series specific baselines (SARIMAX/Prophet/LSTM) to benchmark against tree-based approaches.
+- Package reusable feature engineering utilities and expose them via a small library or pipeline script.
+- Build an interactive dashboard (e.g., Plotly Dash or Power BI) for stakeholders to explore the 30-year climatology.
 
-## 🏁 Acknowledgements
+## Acknowledgements
+- Developed as part of a machine-learning training programme using historical records sourced from commercial weather providers for Mansoura, Egypt.
 
-This project was developed as part of a machine learning training program to apply end-to-end ML workflow skills on a **real-world, long-span dataset**.
-
----
